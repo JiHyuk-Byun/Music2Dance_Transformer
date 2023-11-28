@@ -1,9 +1,51 @@
 import torch
 from torch import nn
 
+import utils.rotation_conversions as geometry 
+from models.decoder import TransformerDecoder
 
-from .utils import rotation_conversions as geometry 
-from decoder import TransfromerDecoder
+class MappingNet(nn.Module):
+    def __init__(self, in_dim, dim):
+        super().__init__()
+        self.shared = nn.Sequential(
+            nn.Linear(in_dim, dim), nn.GELU(),
+            nn.Linear(dim, dim), nn.GELU(),
+        )
+
+        self.unshared = nn.ModuleList()        
+        for _ in range(10):
+            self.unshared.append(nn.Sequential(
+                nn.Linear(dim, dim), nn.GELU(),
+                nn.Linear(dim, dim)
+            ))
+
+    def forward(self, x, genre_batch):
+        print(x.shape)
+
+        s = self.shared(x) # noise input을 MLP로 어떤 shared 차원으로 이동.
+        unshared = self
+        out = []
+        
+        # genre is list and network selection can not be batched. therefore we need to pass genre per 1 batch
+        for i, genre in enumerate(genre_batch):
+            net = self.unshared[genre]
+
+            g_feature = net(s[i].unsqueeze(0))
+            
+            out.append(g_feature)
+
+        # Concat outputs to reassemble as batches
+        out = torch.cat(out, dim=0)
+
+        return out
+        
+        # sList = []
+        # for unshare in self.unshared: # 해당 feature를 각 10개의 genre별로 대응시킴
+        #     sList.append(unshare(s))
+
+        # s = torch.stack(sList, dim=1)
+        # idx = torch.LongTensor(range(len(genre))).to(genre.device)
+        # return s[idx, genre]
 
 class M2D(nn.Module):
     def __init__(self, 
@@ -61,9 +103,11 @@ class M2D(nn.Module):
         # 'x': [batch, music_length+seed_m_length, dim]
 
         s = self.mapping(noise, genre)[:, None] # noise & genre를 value로
-
+        # 's': [batch, 1, dim]
         x = self.tr_block(x, s)
-
+        # 'x': [batch, music_length+seed_m_length, dim]
+        
+        print(x.shape)
         # Head
         x = self.mlp_l(x)[:, : self.predict_length] # slice only prediction_length
 

@@ -5,9 +5,9 @@
 """
 from torch import nn
 
-from layers.layer_norm import LayerNorm
-from layers.multi_head_attention import MultiHeadAttention
-from layers.position_wise_feed_forward import PositionwiseFeedForward
+from models.layer.layer_norm import LayerNorm
+from models.layer.multi_head_attention import MultiHeadAttention
+from models.layer.position_wise_feed_forward import PositionwiseFeedForward
 
 
 class DecoderLayer(nn.Module):
@@ -27,12 +27,12 @@ class DecoderLayer(nn.Module):
         self.norm3 = LayerNorm(hid_dim=hid_dim)
         self.dropout3 = nn.Dropout(p=drop_prob)
 
-    def forward(self, query, context, trg_mask, src_mask):
+    def forward(self, query, context):
 
         # Masked SA
         # 1. compute self attention with mask
         _x = query
-        x = self.self_attention(q=query, k=query, v=query, mask=trg_mask)
+        x = self.self_attention(q=query, k=query, v=query)
         
         # 2. add and norm
         x = self.dropout1(x)
@@ -42,7 +42,7 @@ class DecoderLayer(nn.Module):
         if context is not None:
             # 3. compute encoder - decoder attention
             _x = x
-            x = self.enc_dec_attention(q=x, k=context, v=context, mask=src_mask)
+            x = self.enc_dec_attention(q=x, k=context, v=context)
             
             # 4. add and norm
             x = self.dropout2(x)

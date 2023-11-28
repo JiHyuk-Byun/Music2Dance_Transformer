@@ -23,6 +23,7 @@ class MappingNet(nn.Module):
         print(x.shape)
 
         s = self.shared(x) # noise input을 MLP로 어떤 shared 차원으로 이동.
+        # 's' : [batch, dim]
         unshared = self
         out = []
         
@@ -102,12 +103,13 @@ class M2D(nn.Module):
         x = torch.cat([m, a], dim=1) # audio|motion을 query로 사용
         # 'x': [batch, music_length+seed_m_length, dim]
 
-        s = self.mapping(noise, genre)[:, None] # noise & genre를 value로
+        s = self.mapping(noise, genre)[:, None] # noise를 주어진 genre에 맞는 network를 거쳐 genre feature를 구함.
         # 's': [batch, 1, dim]
+
         x = self.tr_block(x, s)
         # 'x': [batch, music_length+seed_m_length, dim]
-        
         print(x.shape)
+
         # Head
         x = self.mlp_l(x)[:, : self.predict_length] # slice only prediction_length
 

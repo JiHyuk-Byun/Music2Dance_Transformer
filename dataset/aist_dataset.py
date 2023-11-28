@@ -3,7 +3,12 @@ from data_utils import * # 동일폴더
 
 
 class AISTPPDataset(Dataset):
-
+    '''
+    dance_s:  torch.Size([2, 120, 75]) [batch, seed_m_length, pose&trans]
+    dance_f:  torch.Size([2, 20, 75])  [batch, predict_length, pose&trans]
+    music:  torch.Size([2, 240, 441])  [batch, music_length, feature size]
+    dance_id:  torch.Size([2])         [batch]
+    '''
     def __init__(self, src_path, music_length, seed_m_length, predict_length):
 
         self.music_length = music_length
@@ -27,6 +32,7 @@ class AISTPPDataset(Dataset):
         music = self.music_dict[music_name].type(torch.float32)
 
         dance_id = torch.from_numpy(np.array(dance_genre_dict[dance_genre])).long() # dance genre's embedding(0~9)
+        print(dance_id)
         sample_idx = get_feature_sample(pose.shape[0], self.music_length) # 시작 index sampling
 
         pose_s, pose_f = pose[sample_idx : sample_idx + self.seed_m_length],\
@@ -60,6 +66,9 @@ if __name__ == '__main__':
     for idx in range(len(loader)):
         try:
             dance_s, dance_f, music, dance_id = next(loader)
-            print(dance_s.size(), dance_f.size(), music.size(), dance_id.size())
+            print("dance_s: ", dance_s.size()) 
+            print("dance_f: ", dance_f.size())
+            print("music: ", music.size())
+            print("dance_id: ", dance_id.size())
         except:
             pass

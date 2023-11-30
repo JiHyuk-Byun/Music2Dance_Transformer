@@ -6,7 +6,7 @@ from einops import rearrange
 import utils.rotation_conversions as geometry 
 
 class ComputeLoss(nn.Module):
-    def __init__(self, rot_6d, smpl_path):
+    def __init__(self, rot_6d):
         super(ComputeLoss, self).__init__()
         self.rot_6d = rot_6d
 

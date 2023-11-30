@@ -1,6 +1,6 @@
 import torch
 from utils.compute_loss import ComputeLoss
-from models.model import M2D
+from models.components.model import M2D
 from pytorch_lightning import LightningModule
 
 class AISTLitModule(LightningModule):
@@ -38,3 +38,18 @@ class AISTLitModule(LightningModule):
         if self.hparams.scheduler:
             gen_scheduler = self.lr_schedulers()
             gen_scheduler.step()
+    
+    def validation_step(self, batch, batch_idx):
+        loss, log_dict = self.gen_step(batch, "valid")
+        self.log_dict(log_dict, on_step=True, on_epoch=False, prog_bar=False)
+        return loss
+    
+    def configure_optimizers(self):
+        optimizer = self.hparams.optimizer
+        scheduler = self.hparams.scheduler
+
+        gen_optim = getattr(torch.optim, optimizer['type'])(self.gen.parameters(), **optimizer['kwargs'])
+        if scheduler:
+            gen_scheduler = getattr(torch.optim.lr_scheduler, scheduler['type'])(gen_optim, **scheduler['kwargs'])
+            return {"optimizer": gen_optim, "lr_scheduler": gen_scheduler}
+        return gen_optim

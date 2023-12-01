@@ -6,6 +6,7 @@ This script is borrowed from https://github.com/mkocabas/VIBE
 import os
 import math
 import trimesh
+os.environ['PYOPENGL_PLATFORM'] = 'osmesa'
 import pyrender
 import numpy as np
 
@@ -13,7 +14,7 @@ from pyrender.constants import RenderFlags
 
 
 
-os.environ['PYOPENGL_PLATFORM'] = 'egl'
+#os.environ['PYOPENGL_PLATFORM'] = 'egl'
 
 
 class WeakPerspectiveCamera(pyrender.Camera):
@@ -137,7 +138,7 @@ class Renderer:
 
         rgb, _ = self.renderer.render(self.scene, flags=render_flags)
         valid_mask = (rgb[:, :, -1] > 0)[:, :, np.newaxis]
-        output_img = rgb[:, :, :-1] * valid_mask + (1 - valid_mask) * img
+        output_img = rgb[:, :, :] * valid_mask + (1 - valid_mask) * img
         image = output_img.astype(np.uint8)
 
         self.scene.remove_node(mesh_node)

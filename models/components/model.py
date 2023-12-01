@@ -58,7 +58,8 @@ class M2D(nn.Module):
     mlp_dim=2048,
     music_length=240, 
     seed_m_length=120, 
-    predict_length=20, 
+    predict_length=20,
+    smpl=None, 
     rot_6d=True,
     device=None):
 
@@ -116,7 +117,7 @@ class M2D(nn.Module):
         return x
 
     def inference(self, audio, motion, noise, genre):
-        T = audio.shape[1]
+        T = audio.shape[1] # time
 
         new_motion = motion
         for idx in range(0, T - self.music_length + 1, self.predict_length):

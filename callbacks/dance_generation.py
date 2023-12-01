@@ -76,7 +76,7 @@ class DanceGeneration(Callback):
         noise = torch.randn(self.num_sample, 256).to(pl_module.device)
 
         with torch.no_grad():
-            output_motion = pl_module.gen.diversity(audio, seed_motion, noise, seed_genre)
+            output_motion = pl_module.gen.inference(audio, seed_motion, noise, seed_genre)
             self.render_video(output_motion, pl_module, "diversity")
 
     def render_video(self, motion, pl_module, state):

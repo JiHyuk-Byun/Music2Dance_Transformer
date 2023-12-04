@@ -50,7 +50,7 @@ class AISTLitModule(LightningModule):
             gen_scheduler = self.lr_schedulers()
             gen_scheduler.step()
     
-    def validation_step(self, batch, batch_idx):
+    def test_step(self, batch, batch_idx):
         
         loss, log_dict = self.gen_step(batch, "valid")
         self.log_dict(log_dict, on_step=True, on_epoch=False, prog_bar=False)

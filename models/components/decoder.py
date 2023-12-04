@@ -21,9 +21,6 @@ class TransformerDecoder(nn.Module):
     device):
         super().__init__()
 
-        # Embedding
-        self.pos_emb = nn.Parameter(torch.randn(in_len, hid_dim))
-
         self.layers = nn.ModuleList([DecoderLayer(hid_dim=hid_dim,
                                                   ffn_dim=ffn_dim,
                                                   n_head=n_head,
@@ -35,7 +32,6 @@ class TransformerDecoder(nn.Module):
         _, length, dim = query.shape
 
         for layer in self.layers:
-            query += self.pos_emb # Learnable PE
             query = layer(query, value) # norm(MSA)-> norm(MHA) -> norm(FFN) ->
 
         # pass to LM head

@@ -34,7 +34,7 @@ class AISTPPDataModule(LightningDataModule):
             drop_last=False
         )
 
-    def val_dataloader(self):
+    def test_dataloader(self):
         return DataLoader(
             dataset=self.data_test,
             batch_size=self.batch_size,

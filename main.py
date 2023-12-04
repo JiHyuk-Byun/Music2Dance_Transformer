@@ -1,4 +1,4 @@
-from models.model import *
+from models.components.model import *
 
 if __name__ == '__main__':
     ####################################################

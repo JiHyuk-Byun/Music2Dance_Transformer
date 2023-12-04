@@ -53,14 +53,16 @@ class DanceGeneration(Callback):
 
         self.ready = True
 
-    def on_sanity_check_start(self, trainer, pl_module):
-        self.ready = False
+    # def on_sanity_check_start(self, trainer, pl_module):
+    #     print("sanity_start")
+    #     self.ready = False
 
-    def on_sanity_check_end(self, trainer, pl_module):
-        """Start executing this callback only after all validation sanity checks end."""
-        self.ready = True
+    # def on_sanity_check_end(self, trainer, pl_module):
+    #     """Start executing this callback only after all validation sanity checks end."""
+    #     print("sanity_end")
+    #     self.ready = True
 
-    def on_validation_epoch_end(self, trainer, pl_module):
+    def on_save_checkpoint(self, trainer, pl_module, checkpoint=None):
         if self.ready:
             self.diversity(pl_module)
 
@@ -89,7 +91,7 @@ class DanceGeneration(Callback):
         renderer = get_renderer(width, height)
 
         for ii, motion_ in enumerate(motion):
-            save_path = os.path.join(self.save_path, f'epoch{pl_module.current_epoch}_{state}_z{ii}.mp4')
+            save_path = os.path.join(self.save_path, f'step{pl_module.global_step}_{state}_z{ii}.mp4')
             writer = imageio.get_writer(save_path, fps=60)
 
             pose, trans = motion_[:, :-3].view(-1, 24, 3), motion_[:, -3:]

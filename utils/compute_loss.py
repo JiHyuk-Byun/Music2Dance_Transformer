@@ -6,9 +6,10 @@ from einops import rearrange
 import utils.rotation_conversions as geometry 
 
 class ComputeLoss(nn.Module):
-    def __init__(self, rot_6d):
+    def __init__(self, rot_6d, alphas: list):
         super(ComputeLoss, self).__init__()
         self.rot_6d = rot_6d
+        self.alphas = alphas
 
         self.l2_loss = nn.MSELoss()
 
@@ -43,7 +44,7 @@ class ComputeLoss(nn.Module):
         log_dict.update({f'{state}/seq_loss': seq_loss})
 
         # Compute final loss
-        loss = 0.636 * mse_loss + 2.964 * seq_loss
+        loss = self.alphas[0] * mse_loss + self.alphas[1] * seq_loss
         log_dict.update({f'{state}/loss': loss})
 
         return loss, log_dict

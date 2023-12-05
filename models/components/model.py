@@ -4,13 +4,14 @@ import numpy as np
 
 import utils.rotation_conversions as geometry 
 from models.components.decoder import TransformerDecoder
+from models.components.encoder import TransformerEncoder
 
 class M2D(nn.Module):
     def __init__(self, 
     audio_channel=441,
     noise_size=256,
     dim=512, 
-    depth=4, 
+    depth=2, 
     heads=8, 
     mlp_dim=2048,
     music_length=240, 
@@ -47,6 +48,15 @@ class M2D(nn.Module):
             self.mlp_m = nn.Linear(24 * 3 + 3, dim)
             self.mlp_l = nn.Linear(dim, 24 * 3 + 3)
 
+        # self.tr_block = TransformerEncoder(
+        #         in_len=music_length + seed_m_length, 
+        #         hid_dim=dim,       
+        #         ffn_dim=mlp_dim,        
+        #         n_head=heads,         
+        #         n_layers=depth,       
+        #         drop_prob=0.1,      
+        #         device=device
+        # )
         self.tr_block = TransformerDecoder(
                 in_len=music_length + seed_m_length, 
                 hid_dim=dim,       
@@ -77,6 +87,7 @@ class M2D(nn.Module):
             s = self.mapping(noise, genre)[:, None] # noise를 주어진 genre에 맞는 network를 거쳐 genre feature를 구함.
         # 's': [batch, 1, dim]
         
+        # x = self.tr_block(x)
         x = self.tr_block(x, s)
         # 'x': [batch, music_length+seed_m_length, dim]
 

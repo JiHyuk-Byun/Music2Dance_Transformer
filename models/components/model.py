@@ -20,6 +20,7 @@ class M2D(nn.Module):
     smpl=None, 
     rot_6d=True,
     reconstruction=True,
+    cross_attn=False,
     device=None):
 
         super().__init__()
@@ -37,44 +38,49 @@ class M2D(nn.Module):
 
         self.mapping = MappingNet(noise_size, dim)
 
-        self.mlp_a = nn.Linear(audio_channel, dim)
+        self.emb_a = nn.Linear(audio_channel, dim)
 
         self.pos_encoder = PositionalEncoding(d_model=dim, max_len=seed_m_length + music_length)
+        
+        self.cross_attn = cross_attn
 
         if rot_6d: #input이 6d인 경우.
-            self.mlp_m = nn.Linear(24 * 6 + 3, dim)
+            self.emb_m = nn.Linear(24 * 6 + 3, dim)
             self.mlp_l = nn.Linear(dim, 24 * 6 + 3)
         else:
-            self.mlp_m = nn.Linear(24 * 3 + 3, dim)
+            self.emb_m = nn.Linear(24 * 3 + 3, dim)
             self.mlp_l = nn.Linear(dim, 24 * 3 + 3)
+        
+        if self.cross_attn:
+            self.tr_block = TransformerDecoder(
+                    in_len=music_length + seed_m_length, 
+                    hid_dim=dim,       
+                    ffn_dim=mlp_dim,        
+                    n_head=heads,         
+                    n_layers=depth,       
+                    drop_prob=0.1,      
+                    device=device
 
-        # self.tr_block = TransformerEncoder(
-        #         in_len=music_length + seed_m_length, 
-        #         hid_dim=dim,       
-        #         ffn_dim=mlp_dim,        
-        #         n_head=heads,         
-        #         n_layers=depth,       
-        #         drop_prob=0.1,      
-        #         device=device
-        # )
-        self.tr_block = TransformerDecoder(
-                in_len=music_length + seed_m_length, 
-                hid_dim=dim,       
-                ffn_dim=mlp_dim,        
-                n_head=heads,         
-                n_layers=depth,       
-                drop_prob=0.1,      
-                device=device
+            )
 
-        )
+        else:
+            self.tr_block = TransformerEncoder(
+                    in_len=music_length + seed_m_length, 
+                    hid_dim=dim,       
+                    ffn_dim=mlp_dim,        
+                    n_head=heads,         
+                    n_layers=depth,       
+                    drop_prob=0.1,      
+                    device=device
+            )
 
     def forward(self, audio, motion, noise, genre):
         if self.rot_6d:
             motion = geometry.matTOrot6d(motion)
 
-        a = self.pos_encoder(self.mlp_a(audio))
+        a = self.pos_encoder(self.emb_a(audio))
         # 'a': [batch, music_length, dim]
-        m = self.pos_encoder(self.mlp_m(motion))
+        m = self.pos_encoder(self.emb_m(motion))
         # 'm': [batch, seed_m_length, dim]
 
         x = torch.cat([m, a], dim=1) # audio|motion을 query로 사용
@@ -87,8 +93,10 @@ class M2D(nn.Module):
             s = self.mapping(noise, genre)[:, None] # noise를 주어진 genre에 맞는 network를 거쳐 genre feature를 구함.
         # 's': [batch, 1, dim]
         
-        # x = self.tr_block(x)
-        x = self.tr_block(x, s)
+        if self.cross_attn:
+            x = self.tr_block(x, s)
+        else:
+            x = self.tr_block(x)
         # 'x': [batch, music_length+seed_m_length, dim]
 
 

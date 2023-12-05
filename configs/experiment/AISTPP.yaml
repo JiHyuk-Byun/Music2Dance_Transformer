@@ -62,12 +62,13 @@ model:
     heads             : 8
     mlp_dim           : 2048
     music_length      : 240
-    seed_m_length     : 60
+    seed_m_length     : 120
     predict_length    : 30
     rot_6d            : True
     device            : None
     smpl              : ${data_dir}/smpl
     reconstruction    : True
+    cross_attn        : False
 
   loss_params:
     rot_6d: ${model.gen_params.rot_6d}

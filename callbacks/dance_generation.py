@@ -66,6 +66,10 @@ class DanceGeneration(Callback):
         if self.ready:
             self.diversity(pl_module)
 
+    def on_train_end(self, trainer, pl_module):
+        if self.ready:
+            self.diversity(pl_module)
+            
     def diversity(self, pl_module):
         T = self.play_time * 60 + self.seed_m_length
 

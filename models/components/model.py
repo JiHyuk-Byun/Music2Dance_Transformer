@@ -2,6 +2,7 @@ import torch
 from torch import nn
 import numpy as np
 
+from utils.smoothe import smooth_pose
 import utils.rotation_conversions as geometry 
 from models.components.decoder import TransformerDecoder
 from models.components.encoder import TransformerEncoder
@@ -21,6 +22,7 @@ class M2D(nn.Module):
     rot_6d=True,
     reconstruction=True,
     cross_attn=False,
+    mint=False,
     device=None):
 
         super().__init__()
@@ -39,17 +41,22 @@ class M2D(nn.Module):
         self.mapping = MappingNet(noise_size, dim)
 
         self.emb_a = nn.Linear(audio_channel, dim)
+        self.emb_a_mint = nn.Linear(audio_channel, dim)
 
         self.pos_encoder = PositionalEncoding(d_model=dim, max_len=seed_m_length + music_length)
         
         self.cross_attn = cross_attn
 
+        self.mint = mint
+
         if rot_6d: #input이 6d인 경우.
             self.emb_m = nn.Linear(24 * 6 + 3, dim)
             self.emb_l = nn.Linear(dim, 24 * 6 + 3)
+            self.emb_m_mint = nn.Linear(24 * 6 + 3, dim)
         else:
             self.emb_m = nn.Linear(24 * 3 + 3, dim)
             self.emb_l = nn.Linear(dim, 24 * 3 + 3)
+            self.emb_m_mint = nn.Linear(24 * 3 + 3, dim)
         
         if self.cross_attn:
             self.tr_block = TransformerDecoder(
@@ -61,6 +68,37 @@ class M2D(nn.Module):
                     drop_prob=0.1,      
                     device=device
 
+            )
+
+        elif self.mint:
+            self.tr_block_a = TransformerEncoder(
+                    in_len=music_length, 
+                    hid_dim=dim,       
+                    ffn_dim=mlp_dim,        
+                    n_head=10,         
+                    n_layers=2,       
+                    drop_prob=0.1,      
+                    device=device
+            )
+
+            self.tr_block_m = TransformerEncoder(
+                    in_len=seed_m_length, 
+                    hid_dim=dim,       
+                    ffn_dim=mlp_dim,        
+                    n_head=10,         
+                    n_layers=2,       
+                    drop_prob=0.1,      
+                    device=device
+            )
+
+            self.tr_block = TransformerEncoder(
+                    in_len=music_length + seed_m_length, 
+                    hid_dim=dim,       
+                    ffn_dim=mlp_dim,        
+                    n_head=heads,         
+                    n_layers=depth,       
+                    drop_prob=0.1,      
+                    device=device
             )
 
         else:
@@ -96,48 +134,80 @@ class M2D(nn.Module):
 
             x = self.tr_block(x, s)
 
-
-
-        else: # reconstruction + use encoder
-            g = nn.functional.one_hot(genre, 10).to(torch.float32)
-            g = self.emb_genre(g)[:, None]
-            # 'g': [batch, dim]
-
-            a = self.emb_a(audio)
+        elif self.mint:
+            a = self.pos_encoder(self.emb_a_mint(audio))
             # 'a': [batch, music_length, dim]
 
-            a_genre = self.pos_encoder(torch.cat([g,a], dim=1))
+            m = self.pos_encoder(self.emb_m_mint(motion))
+            # 'm': [batch, seed_m_length, dim]
+
+            a = self.tr_block_a(a)
+            # 'a': [batch, music_length, dim]
+
+            m = self.tr_block_m(m)
+            # 'm': [batch, seed_m_length, dim]
+
+            x = torch.cat([m, a], dim=1)
+            # 'x': [batch, music_length+seed_m_length, dim]
+
+            x = self.tr_block(x)
+            # 'x': [batch, music_length+seed_m_length+1, dim]
+
+        else: # reconstruction + use encoder
+            # g = nn.functional.one_hot(genre, 10).to(torch.float32)
+            # g = self.emb_genre(g)[:, None]
+            # 'g': [batch, dim]
+
+            a = self.pos_encoder(self.emb_a(audio))
+            # 'a': [batch, music_length, dim]
+
+            # a_genre = self.pos_encoder(torch.cat([g,a], dim=1))
             # 'a_genre': [batch, music_length+1, dim]
 
             m = self.pos_encoder(self.emb_m(motion))
             # 'm': [batch, seed_m_length, dim]
 
-            x = torch.cat([m, a_genre], dim=1) # audio|motion을 input으로
-            # 'x': [batch, music_length+seed_m_length+1, dim]
+            x = torch.cat([m, a], dim=1) # audio|motion을 input으로
+            # 'x': [batch, music_length+seed_m_length, dim]
 
             x = self.tr_block(x)
-            # 'x': [batch, music_length+seed_m_length+1, dim]
+            # 'x': [batch, music_length+seed_m_length, dim]
     
         # Head
         x = self.emb_l(x)[:, :self.predict_length] # slice only prediction_length
+        # 'x': [batch, music_length+seed_m_length+1, 24*6+3]
 
         output = x
         return output
 
     def inference(self, audio, motion, noise, genre):
         T = audio.shape[1] # time
+        b, s, _ = motion.shape
 
-        new_motion = motion
+        new_motion = motion # seed motion
+        # [batch, seed_m_length, 24*3+3]
         for idx in range(0, T - self.music_length + 1, self.predict_length):
             audio_ = audio[:, idx:idx + self.music_length]
 
             motion_ = new_motion[:, -self.seed_m_length:]
-            motion_ = self(audio_, motion_, noise, genre)
-
+            # [batch, seed_m_length, 24*3+3]
+            motion_ = self.forward(audio_, motion_, noise, genre)
+            # [batch, predict_length, 24*6+3]
             if self.rot_6d:
-                motion_ = geometry.rot6dTOmat(motion_)
+                motion_ = geometry.rot6dTOmat(motion_) 
+            # [batch, predict_length, 24*3+3]
+            b, p, _ = motion_.shape
+
+            # # Smooth motion
+            # for idx, motion in enumerate(motion_):
+            #     pose, trans = motion[:, :-3].view(-1, 24, 3), motion[:, -3:]
+            #     smth_poses = torch.from_numpy(smooth_pose(pose.cpu().numpy()))
+            #     smth_trans = torch.from_numpy(smooth_pose(trans.cpu().numpy()))
+
+            #     motion_[idx] = torch.cat([smth_poses.view(p, -1), smth_trans.view(p, -1)], dim=1)
 
             new_motion = torch.cat([new_motion, motion_], dim=1)
+            
         return new_motion
 
 class MappingNet(nn.Module):

@@ -8,10 +8,11 @@
             "name": "Python: 현재 파일",
             "type": "python",
             "request": "launch",
-            "program": "train.py",
+            "program": "evaluation.py",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args": ["CUDA_VISIBLE_DEVICES=0", "HYDRA_FULL_ERROR=1", "experiment=AISTPP"]
+            "args": ["-l=runs/Aist++_M2D_reconstruction/2023-12-07_21-08-38_s26_gpu1", "-c=epoch=3571-step=300000.ckpt"]
+            
         }
     ]
 }

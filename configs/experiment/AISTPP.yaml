@@ -39,6 +39,7 @@ trainer:
   #progress_bar_refresh_rate : 10
 
   fast_dev_run              : False
+  resume_from_checkpoint    : False
 
 datamodule:
   _target_         : datamodules.aist_datamodule.AISTPPDataModule
@@ -46,7 +47,7 @@ datamodule:
   music_length     : ${model.gen_params.music_length}
   seed_m_length    : ${model.gen_params.seed_m_length}
   predict_length   : ${model.gen_params.predict_length}
-  train_test_split : [ 1368, 40 ]
+  train_test_split : [ 1333, 30 ] # [1368, 40] ignore unnecessary datas
   batch_size       : 16
   num_workers      : 16
   pin_memory       : True
@@ -69,6 +70,7 @@ model:
     smpl              : ${data_dir}/smpl
     reconstruction    : True
     cross_attn        : False
+    mint              : False
 
   loss_params:
     rot_6d: ${model.gen_params.rot_6d}

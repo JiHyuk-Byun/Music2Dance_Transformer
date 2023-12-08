@@ -36,10 +36,16 @@ def train(config: DictConfig) -> Optional[float]:
         config.trainer.resume_from_checkpoint = os.path.join(
             hydra.utils.get_original_cwd(), ckpt_path
         )
+        ckpt_path = os.path.join(
+            hydra.utils.get_original_cwd(), ckpt_path
+        )
 
     # Init lightning datamodule
     log.info(f"Instantiating datamodule <{config.datamodule._target_}>")
     datamodule: LightningDataModule = hydra.utils.instantiate(config.datamodule)
+    print(len(datamodule.data_test[0]))
+    a = [datamodule.data_test[i][-1] for i in range(30)]
+    print(a)
 
     # Init lightning model
     log.info(f"Instantiating model <{config.model._target_}>")
@@ -81,7 +87,7 @@ def train(config: DictConfig) -> Optional[float]:
     # Train the model
     if config.get("train"):
         log.info("Starting training!")
-        trainer.fit(model=model, datamodule=datamodule)
+        trainer.fit(model=model, datamodule=datamodule, ckpt_path=ckpt_path)
 
     # Get metric score for hyperparameter optimization
     optimized_metric = config.get("optimized_metric")
@@ -94,7 +100,7 @@ def train(config: DictConfig) -> Optional[float]:
 
     # Test the model
     if config.get("test"):
-        ckpt_path = "best"
+        # ckpt_path = "best"
         if not config.get("train") or config.trainer.get("fast_dev_run"):
             ckpt_path = None
         log.info("Starting testing!")

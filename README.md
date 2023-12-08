@@ -1,11 +1,11 @@
-# RUN CODE
+# Music2Dance Transformer
 
 ```python
 # Run code
 CUDA_VISIBLE_DEVICES=GPU_NUMBER \
 HYDRA_FULL_ERROR=1 \
 python3 train.py \
-name="Aist++_M2D_reconstruction_onlymse" \
+name="Aist++_M2D_baseline" \
 server_name=SERVER_NAME \
 gpu_name=GPU_NAME \
 experiment=AISTPP \
